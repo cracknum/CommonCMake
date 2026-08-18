@@ -1,0 +1,29 @@
+# ============================================================
+#  cmake_uninstall.cmake —— CommonCMake 通用卸载脚本（模板）
+#  由 add_uninstall_target() 注入 @CMAKE_COMMAND@ 与
+#  @CMAKE_CURRENT_BINARY_DIR@ 后生成，供
+#  cmake --build <build_dir> --target uninstall 调用。
+#  读取安装清单 install_manifest.txt，逐一删除已安装文件。
+# ============================================================
+if(NOT EXISTS "@CMAKE_CURRENT_BINARY_DIR@/install_manifest.txt")
+    message(FATAL_ERROR
+        "Cannot find install manifest: @CMAKE_CURRENT_BINARY_DIR@/install_manifest.txt")
+endif()
+
+file(READ "@CMAKE_CURRENT_BINARY_DIR@/install_manifest.txt" _files)
+string(REGEX REPLACE "\n" ";" _files "${_files}")
+
+foreach(_file ${_files})
+    message(STATUS "Uninstalling $ENV{DESTDIR}${_file}")
+    if(IS_SYMLINK "$ENV{DESTDIR}${_file}" OR EXISTS "$ENV{DESTDIR}${_file}")
+        execute_process(
+            COMMAND "@CMAKE_COMMAND@" -E rm -f "$ENV{DESTDIR}${_file}"
+            RESULT_VARIABLE _rm_result
+        )
+        if(NOT _rm_result EQUAL 0)
+            message(FATAL_ERROR "Problem when removing $ENV{DESTDIR}${_file}")
+        endif()
+    else()
+        message(STATUS "File $ENV{DESTDIR}${_file} does not exist.")
+    endif()
+endforeach()
