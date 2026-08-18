@@ -5,6 +5,7 @@
 #  提供函数：
 #    install_export_package(...)        一键生成并安装 CMake 包
 #                                        （Targets + Config + Version 文件）
+#    add_export_header(...)             生成动态库导出宏头文件
 #    add_uninstall_target()             添加 uninstall 目标
 #    add_windows_version_resource(...)  Windows DLL/EXE 注入 VERSIONINFO 资源
 # ============================================================
@@ -171,4 +172,66 @@ function(add_windows_version_resource TARGET)
     set(_rc_output "${CMAKE_CURRENT_BINARY_DIR}/${VR_PREFIX}_version.rc")
     configure_file("${VR_TEMPLATE}" "${_rc_output}" @ONLY)
     target_sources(${TARGET} PRIVATE "${_rc_output}")
+endfunction()
+
+# ------------------------------------------------------------
+#  add_export_header —— 为动态库目标生成导出宏头文件
+#
+#  参数：
+#    TARGET <t>               目标名（必填，第一个位置参数）
+#    [PREFIX <prefix>]        宏前缀，默认目标名大写
+#                             （如 PREFIX MYLIB → 生成 MYLIB_EXPORT）
+#    [OUTPUT_NAME <file>]     输出头文件名，默认 <prefix 小写>_export.h
+#    [STATIC_DEFINE <name>]   静态库置空宏的宏名，默认 <PREFIX>_STATIC_DEFINE
+#
+#  行为：
+#    - 由 CommonCMake 自带模板 export.h.in 生成
+#      ${CMAKE_CURRENT_BINARY_DIR}/<OUTPUT_NAME>
+#    - 生成目录加入目标 PUBLIC include 路径（构建/安装双接口）
+#    - 非 Windows 平台自动设置 CXX_VISIBILITY_PRESET=hidden、
+#      VISIBILITY_INLINES_HIDDEN=ON，使 visibility("default") 生效
+#
+#  用法：
+#    add_library(mylib SHARED ...)
+#    add_export_header(mylib PREFIX MYLIB)
+#    # 源码中：#include "mylib_export.h"
+#    #         class MYLIB_EXPORT MyClass { ... };
+# ------------------------------------------------------------
+function(add_export_header TARGET)
+    cmake_parse_arguments(EH "" "PREFIX;OUTPUT_NAME;STATIC_DEFINE" "" ${ARGN})
+
+    if(NOT EH_PREFIX)
+        string(TOUPPER "${TARGET}" EH_PREFIX)
+    endif()
+    if(NOT EH_OUTPUT_NAME)
+        string(TOLOWER "${EH_PREFIX}" _prefix_lower)
+        set(EH_OUTPUT_NAME "${_prefix_lower}_export.h")
+    endif()
+    if(NOT EH_STATIC_DEFINE)
+        set(EH_STATIC_DEFINE "${EH_PREFIX}_STATIC_DEFINE")
+    endif()
+
+    # 构建 SHARED 库时 CMake 自动定义 <TARGET>_EXPORTS，模板据此区分
+    # 构建态（dllexport）与消费态（dllimport）。
+    set(TARGET_EXPORT_DEFINE "${TARGET}_EXPORTS")
+    set(PREFIX "${EH_PREFIX}")
+    configure_file(
+        "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/export.h.in"
+        "${CMAKE_CURRENT_BINARY_DIR}/${EH_OUTPUT_NAME}"
+        @ONLY
+    )
+
+    target_sources(${TARGET} PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/${EH_OUTPUT_NAME}")
+    target_include_directories(${TARGET} PUBLIC
+        "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>"
+        "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
+    )
+
+    # 非 Windows：默认隐藏符号，仅导出标了 @PREFIX@_EXPORT 的接口
+    if(NOT WIN32)
+        set_target_properties(${TARGET} PROPERTIES
+            CXX_VISIBILITY_PRESET hidden
+            VISIBILITY_INLINES_HIDDEN ON
+        )
+    endif()
 endfunction()

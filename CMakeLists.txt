@@ -8,6 +8,7 @@ cmake_minimum_required(VERSION 3.21)
 #    InstallUtils.cmake    : install_export_package() / add_uninstall_target()
 #                            / add_windows_version_resource()
 #    version.rc.in         : Windows VERSIONINFO 资源模板（参数化）
+#    export.h.in           : 动态库导出宏头文件模板（add_export_header 使用）
 #
 #  消费方式（三选一）：
 #    1. add_subdirectory(CommonCMake)             # 源码同级/子目录

@@ -1,0 +1,50 @@
+/* ============================================================
+ *  @PREFIX@_export.h —— 动态库导出宏头文件
+ *  由 CommonCMake add_export_header() 基于 export.h.in 模板生成，
+ *  请勿直接编辑本文件。
+ *
+ *  提供宏：
+ *    @PREFIX@_EXPORT         导出声明：构建本库时为 __declspec(dllexport)
+ *                            （Windows）/ visibility("default")（GCC/Clang），
+ *                            消费方使用时自动切换为 dllimport / 默认可见。
+ *    @PREFIX@_NO_EXPORT      显式隐藏符号（非 Windows）。
+ *    @PREFIX@_DEPRECATED     弃用声明。
+ *    @PREFIX@_STATIC_DEFINE  定义后上述宏全部置空（静态库场景）。
+ *
+ *  用法：
+ *    #include "@PREFIX@_export.h"
+ *    class @PREFIX@_EXPORT MyClass { ... };
+ *    @PREFIX@_EXPORT void func();
+ * ============================================================ */
+
+#ifndef @PREFIX@_EXPORT_H
+#define @PREFIX@_EXPORT_H
+
+#ifdef @PREFIX@_STATIC_DEFINE
+/* 静态库：无需导入/导出声明 */
+#  define @PREFIX@_EXPORT
+#  define @PREFIX@_NO_EXPORT
+#  define @PREFIX@_DEPRECATED
+#else
+#  if defined(_WIN32) || defined(__CYGWIN__)
+#    ifdef @TARGET_EXPORT_DEFINE@
+       /* 正在构建本动态库（该宏由 CMake 对 SHARED 库自动定义） */
+#      define @PREFIX@_EXPORT __declspec(dllexport)
+#    else
+       /* 正在使用本动态库 */
+#      define @PREFIX@_EXPORT __declspec(dllimport)
+#    endif
+#    define @PREFIX@_NO_EXPORT
+#    define @PREFIX@_DEPRECATED __declspec(deprecated)
+#  elif defined(__GNUC__) || defined(__clang__)
+#    define @PREFIX@_EXPORT __attribute__((visibility("default")))
+#    define @PREFIX@_NO_EXPORT __attribute__((visibility("hidden")))
+#    define @PREFIX@_DEPRECATED __attribute__((deprecated))
+#  else
+#    define @PREFIX@_EXPORT
+#    define @PREFIX@_NO_EXPORT
+#    define @PREFIX@_DEPRECATED
+#  endif
+#endif
+
+#endif /* @PREFIX@_EXPORT_H */
